@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Potree Viewer - COPC Visualization</title>
+
+  <!-- Potree and required CSS -->
+  <link rel="stylesheet" type="text/css" href="../build/potree/potree.css">
+  <link rel="stylesheet" type="text/css" href="../libs/jquery-ui/jquery-ui.min.css">
+  <link rel="stylesheet" type="text/css" href="../libs/openlayers3/ol.css">
+
+  <style>
+    /* Container Styling */
+    #urlBoxContainer {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--bg-light-color); /* Light background color */
+      border: 1px solid var(--color-1); /* Light border color */
+      border-radius: 8px;
+      padding: 15px;
+      width: 300px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      transition: all 0.3s ease-in-out;
+    }
+
+    /* Title Styling */
+    #urlBoxContainer h3 {
+      margin: 0;
+      margin-bottom: 15px;
+      font-size: 18px;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.7); /* Lighter shade */
+      font-weight: 300; /* Lighter weight for the text */
+      opacity: 0.8; /* Slightly reduce opacity for a more subtle appearance */
+    }
+
+    /* Hide and Show Button Styling */
+    #toggleBoxButton {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: var(--color-primary-3);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 15px 15px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      z-index: 1001; /* Ensure button is on top */
+    }
+
+    #toggleBoxButton:hover {
+      background: var(--color-primary-2); /* Darker on hover */
+    }
+
+    /* Input Field Styling */
+    #copcUrl {
+      width: calc(100% - 22px);
+      padding: 8px;
+      margin-bottom: 15px;
+      border: 1px solid var(--color-1);
+      border-radius: 4px;
+      font-size: 14px;
+      color: var(--bg-color-2);
+      transition: border-color 0.2s ease;
+    }
+
+    #copcUrl:focus {
+      border-color: var(--color-primary-3); /* Highlight input on focus */
+      outline: none;
+    }
+
+    /* Button Styling */
+    #loadCopc {
+      width: 100%;
+      padding: 10px 20px; /* Increased padding for a more spacious feel */
+      background-color: #4CAF50; /* Greenish button color */
+      color: var(--font-color-2); /* Text color */
+      border: none;
+      border-radius: 10px; /* Increased border radius for a more prominent look */
+      font-size: 18px; /* Larger font size for better readability */
+      cursor: pointer;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); /* Stronger shadow for clear separation */
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    }
+
+    /* Button Hover Effect */
+    #loadCopc:hover {
+      background-color: #45a049; /* Darker green background on hover */
+      transform: scale(1.05); /* Slight zoom effect on hover */
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25); /* Deeper shadow on hover for added prominence */
+    }
+
+    /* Button Focus Effect */
+    #loadCopc:focus {
+      outline: none; /* Remove default focus outline */
+      border: 3px solid #3e8e41; /* Thicker border to highlight the button */
+      box-shadow: 0 0 5px #3e8e41; /* Slight glow effect on focus */
+    }
+
+    /* Error Message Styling */
+    #errorMessage {
+      color: #d9534f; /* Reddish text color */
+      display: none;
+      font-size: 12px;
+      margin-top: 5px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+
+</head>
+
+<body>
+  <!-- Load Required Libraries -->
+  <script src="../libs/jquery/jquery-3.1.1.min.js"></script>
+  <script src="../libs/spectrum/spectrum.js"></script>
+  <script src="../libs/jquery-ui/jquery-ui.min.js"></script>
+  <script src="../libs/tween/tween.min.js"></script>
+  <script src="../libs/proj4/proj4.js"></script>
+  <script src="../libs/openlayers3/ol.js"></script>
+  <script src="../libs/jstree/jstree.js"></script>
+  <script src="../libs/i18next/i18next.js"></script>
+  <script src="../libs/other/BinaryHeap.js"></script>
+  <script src="../libs/d3/d3.js"></script> <!-- Ensure D3.js is loaded -->
+  <script src="../build/potree/potree.js"></script>
+  <script src="../libs/copc/index.js"></script>
+
+  <!-- URL Input Container -->
+  <div id="urlBoxContainer">
+    <h3>Cloud Optimized Point Cloud</h3>
+    <input type="text" id="copcUrl" placeholder="Paste your .copc.laz file URL here">
+    <button id="loadCopc">Load Data</button>
+    <p id="errorMessage">Invalid URL or error loading point cloud. Please try again.</p>
+  </div>
+
+  <!-- Toggle Show/Hide Button -->
+  <button id="toggleBoxButton">Hide</button>
+
+  <!-- Potree Render Area -->
+  <div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px;"></div>
+    <div id="potree_render_area" style="background-image: url('../build/potree/resources/images/background.jpg');"></div>
+    <div id="potree_sidebar_container"></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from "../libs/three.js/build/three.module.js";
+
+    // Initialize Potree Viewer
+    const viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+    viewer.setEDLEnabled(true);
+    viewer.setFOV(60);
+    viewer.setPointBudget(10_000_000);
+    viewer.loadSettingsFromURL();
+    viewer.setDescription("COPC URL Viewer");
+    
+    // Load GUI for viewer customization
+    viewer.loadGUI(() => {
+      viewer.setLanguage('en');
+      $("#menu_appearance").next().show();
+    });
+
+    // Function to load COPC file
+    async function loadCopcFile(url) {
+      try {
+        const copc = await new Promise((resolve, reject) => {
+          Potree.CopcLoader.load(url, resolve, reject);
+        });
+        console.log("COPC Object:", copc);
+
+        Potree.loadPointCloud(url, "PointCloud", function(e) {
+          viewer.scene.addPointCloud(e.pointcloud);
+
+          // Configure point cloud material
+          const material = e.pointcloud.material;
+          material.size = 1.0;
+          material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+
+          // Adjust the viewport to fit the point cloud
+          viewer.fitToScreen(0.5);
+
+          // Hide error message
+          document.getElementById("errorMessage").style.display = "none";
+        }, function(error) {
+          console.error("Error loading point cloud:", error);
+          document.getElementById("errorMessage").style.display = "block";
+        });
+      } catch (error) {
+        console.error("Error creating COPC object:", error);
+        document.getElementById("errorMessage").style.display = "block";
+      }
+    }
+
+    // Event listener for loading COPC file
+    document.getElementById("loadCopc").addEventListener("click", () => {
+      const url = document.getElementById("copcUrl").value;
+      if (url) {
+        loadCopcFile(url);
+      } else {
+        document.getElementById("errorMessage").style.display = "block";
+      }
+    });
+
+    // Toggle visibility of the URL box
+    document.getElementById("toggleBoxButton").addEventListener("click", () => {
+      const urlBox = document.getElementById("urlBoxContainer");
+      const isHidden = urlBox.style.display === "none";
+      urlBox.style.display = isHidden ? "block" : "none";
+      document.getElementById("toggleBoxButton").innerText = isHidden ? "Hide" : "Show";
+    });
+  </script>
+</body>
+</html>
